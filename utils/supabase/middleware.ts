@@ -1,11 +1,9 @@
+// utils/supabase/middleware.ts
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const updateSession = async (request: NextRequest) => {
-  // This `try/catch` block is only here for the interactive tutorial.
-  // Feel free to remove once you have Supabase connected.
   try {
-    // Create an unmodified response
     let response = NextResponse.next({
       request: {
         headers: request.headers,
@@ -35,24 +33,30 @@ export const updateSession = async (request: NextRequest) => {
       },
     );
 
-    // This will refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/server-side/nextjs
     const user = await supabase.auth.getUser();
 
-    // protected routes
+    // Redirect to sign-in for protected routes when not authenticated
     if (request.nextUrl.pathname.startsWith("/protected") && user.error) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
+    // Redirect authenticated users from root to main-page
     if (request.nextUrl.pathname === "/" && !user.error) {
-      return NextResponse.redirect(new URL("/protected", request.url));
+      return NextResponse.redirect(new URL("/main-page", request.url));
+    }
+
+    // Redirect to sign-up when trying to generate logos while not authenticated
+    if (request.nextUrl.pathname === "/main-page" && user.error) {
+      return NextResponse.redirect(new URL("/sign-up", request.url));
+    }
+
+    // Redirect authenticated users trying to access sign-in/sign-up to main-page
+    if ((request.nextUrl.pathname === "/sign-in" || request.nextUrl.pathname === "/sign-up") && !user.error) {
+      return NextResponse.redirect(new URL("/main-page", request.url));
     }
 
     return response;
   } catch (e) {
-    // If you are here, a Supabase client could not be created!
-    // This is likely because you have not set up environment variables.
-    // Check out http://localhost:3000 for Next Steps.
     return NextResponse.next({
       request: {
         headers: request.headers,
